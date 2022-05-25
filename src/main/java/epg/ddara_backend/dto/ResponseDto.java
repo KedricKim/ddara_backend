@@ -6,6 +6,6 @@ import lombok.Data;
 public class ResponseDto {
 
     String today;
-    ChannelListDto schedule;
+    ChannelListDto stations;
 
 }

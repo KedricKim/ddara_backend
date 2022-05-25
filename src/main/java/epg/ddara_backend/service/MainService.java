@@ -1,5 +1,6 @@
 package epg.ddara_backend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import epg.ddara_backend.dto.ChannelDto;
 import epg.ddara_backend.dto.ChannelListDto;
 import epg.ddara_backend.dto.ResponseDto;
@@ -8,9 +9,13 @@ import org.json.JSONObject;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,10 +30,61 @@ public class MainService {
     private static String KBSHAN = "26";
     private static String KBSWORLD = "I92";
 
-    public ResponseDto getApi(){
+    /**
+     * today 인자가 없는 경우, 배치
+     * @return
+     */
+    public ResponseDto getSchedules(){
+        LocalDate date = LocalDate.now();
+        String today = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
+        ResponseDto responseDto = this.getSchedules(today); // 전체 스케쥴
+        this.putSchedules(responseDto); // 배치인 경우
+
+        return responseDto;
+    }
+
+    /**
+     * 전체 schedules
+     * @param today 요청 날짜 yyyyMMdd
+     * @return
+     */
+    public ResponseDto getSchedules(String today){
         ResponseDto responseDto = new ResponseDto();
-        String targetUrl = "https://static.api.kbs.co.kr/mediafactory/v1/schedule/weekly?&rtype=jsonp&local_station_code=00&channel_code=21,22,23,24,25,26,I92&program_planned_date_from=20220524&program_planned_date_to=20220524&callback=ddara";
+        responseDto.setToday(today);
+
+        ChannelListDto channelListDto = this.getKbs(today); //kbs
+        responseDto.setStations(channelListDto);
+
+        return responseDto;
+    }
+
+    /**
+     * 타겟 날짜로 배치 및 응답
+     * @param targetDay
+     * @return
+     */
+    public ResponseDto putSchedules(String targetDay){
+
+        ResponseDto responseDto = this.getSchedules(targetDay); // 전체 스케쥴
+        this.putSchedules(responseDto); // 타겟 날짜로 배치
+
+        return responseDto;
+    }
+
+    /**
+     * kbs schedules
+     * @param today
+     * @return
+     */
+    private ChannelListDto getKbs(String today){
+
+        String defaultUrl = "https://static.api.kbs.co.kr/mediafactory/v1/schedule/weekly?&rtype=jsonp&local_station_code=00&channel_code=21,22,23,24,25,26,I92";
+        defaultUrl += "&program_planned_date_from=" + today + "&program_planned_date_to=" + today;
+        String targetUrl = defaultUrl + "&callback=ddara";
+
+        ChannelListDto channelListDto = new ChannelListDto();
+
         try {
 
             URL url = new URL(targetUrl);
@@ -55,9 +111,6 @@ public class MainService {
 
             JSONArray array = new JSONArray(bodyData); // json으로 변경 (역직렬화)
 
-            responseDto.setToday("20220524");
-
-            ChannelListDto channelListDto = new ChannelListDto();
             for(int i=0; i<array.length(); i++) {
                 JSONObject dataObj = array.getJSONObject(i);
                 JSONArray schedulesArray = new JSONArray(dataObj.get("schedules").toString());
@@ -68,9 +121,9 @@ public class MainService {
                     ChannelDto channelDto = new ChannelDto();
 
                     JSONObject schedulesObj = schedulesArray.getJSONObject(j);
-                    channelDto.setStartTime(String.valueOf(schedulesObj.get("program_planned_start_time")));
-                    channelDto.setEndTime(String.valueOf(schedulesObj.get("program_planned_end_time")));
-                    channelDto.setTitle(String.valueOf(schedulesObj.get("programming_table_title")));
+                    if(schedulesObj.has("program_planned_start_time")) channelDto.setStartTime(String.valueOf(schedulesObj.get("program_planned_start_time")));
+                    if(schedulesObj.has("program_planned_end_time")) channelDto.setEndTime(String.valueOf(schedulesObj.get("program_planned_end_time")));
+                    if(schedulesObj.has("programming_table_title")) channelDto.setTitle(String.valueOf(schedulesObj.get("programming_table_title")));
                     if(schedulesObj.has("homepage_url")) channelDto.setHomepageUrl(String.valueOf(schedulesObj.get("homepage_url")));
                     if(schedulesObj.has("image_w")) channelDto.setImage(String.valueOf(schedulesObj.get("image_w")));
                     if(schedulesObj.has("program_staff")) channelDto.setStaff(String.valueOf(schedulesObj.get("program_staff")));
@@ -94,14 +147,45 @@ public class MainService {
                 }else if(KBSWORLD.equals(dataObj.getString("channel_code")) ){
                     channelListDto.setKbsWorld(list);
                 }
-
             }
-            responseDto.setSchedule(channelListDto);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return responseDto;
+        return channelListDto;
+    }
+
+    /**
+     * firebase schedules put
+     * @param responseDto
+     */
+    private void putSchedules(ResponseDto responseDto){
+
+        try{
+            URL url = new URL("https://ddara-70c65-default-rtdb.firebaseio.com/schedule.json");
+            HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+
+            conn.setRequestMethod("PUT"); // http 메서드
+            conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+            conn.setDoOutput(true);
+
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(conn.getOutputStream()));
+
+            // jackson 을 이용한 직렬화
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonResult = mapper.writeValueAsString(responseDto);
+
+            bw.write(jsonResult);
+            bw.flush();
+            bw.close();
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 }
