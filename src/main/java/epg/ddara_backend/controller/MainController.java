@@ -5,7 +5,7 @@ import epg.ddara_backend.service.MainService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -44,8 +44,8 @@ public class MainController {
      * @param targetDay
      * @return
      */
-    @PostMapping("/schedules/v1/{targetDay}")
-    public ResponseDto postSchedules(@PathVariable("targetDay") String targetDay){
+    @PutMapping("/schedules/v1/{targetDay}")
+    public ResponseDto putSchedules(@PathVariable("targetDay") String targetDay){
 
         ResponseDto responseDto = mainService.putSchedules(targetDay);
 

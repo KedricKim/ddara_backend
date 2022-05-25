@@ -15,4 +15,7 @@ public class ChannelListDto{
     List<ChannelDto> kbsHan;
     List<ChannelDto> kbsWorld;
 
+    List<ChannelDto> mbcFm;
+    List<ChannelDto> mbcFm4u;
+
 }
