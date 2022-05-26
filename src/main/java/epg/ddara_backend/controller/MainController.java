@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
 @RestController
 public class MainController {
 
@@ -15,11 +18,26 @@ public class MainController {
     MainService mainService;
 
     /**
-     * 오늘 날짜 스케쥴 배치 및 응답
+     * 오늘 날짜 스케쥴 응답
      * @return
      */
     @GetMapping("/schedules/v1")
-    public ResponseDto schedulesBatch(){
+    public ResponseDto getSchedulesToday(){
+
+        LocalDate date = LocalDate.now();
+        String today = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+
+        ResponseDto responseDto = mainService.getSchedules(today);
+
+        return responseDto;
+    }
+
+    /**
+     * 오늘 날짜 스케쥴 배치 및 응답
+     * @return
+     */
+    @PutMapping("/schedules/v1")
+    public ResponseDto putSchedulesToday(){
 
         ResponseDto responseDto = mainService.getSchedules();
 
@@ -32,7 +50,7 @@ public class MainController {
      * @return
      */
     @GetMapping("/schedules/v1/{targetDay}")
-    public ResponseDto getSchedules(@PathVariable("targetDay") String targetDay){
+    public ResponseDto getSchedulesTarget(@PathVariable("targetDay") String targetDay){
 
         ResponseDto responseDto = mainService.getSchedules(targetDay);
 
@@ -45,7 +63,7 @@ public class MainController {
      * @return
      */
     @PutMapping("/schedules/v1/{targetDay}")
-    public ResponseDto putSchedules(@PathVariable("targetDay") String targetDay){
+    public ResponseDto putSchedulesTarget(@PathVariable("targetDay") String targetDay){
 
         ResponseDto responseDto = mainService.putSchedules(targetDay);
 

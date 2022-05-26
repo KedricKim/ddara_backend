@@ -22,6 +22,13 @@ import java.util.List;
 @Service
 public class MainService {
 
+    // mbc
+    // https://control.imbc.com/Schedule/Radio?callback=asd&sDate=20220523&sType=FM4U
+    // kbs
+    // https://static.api.kbs.co.kr/mediafactory/v1/schedule/weekly?&rtype=jsonp&local_station_code=00&channel_code=21&program_planned_date_from=20220523&program_planned_date_to=20220523&callback=dayliy_schedule
+    // sbs
+    // https://static.cloud.sbs.co.kr/schedule/2022/5/25/Power.json
+
     private static String KBS1 = "21";
     private static String KBS2 = "22";
     private static String KBS3 = "23";
@@ -32,6 +39,9 @@ public class MainService {
 
     private static String MBCFM = "FM";
     private static String MBCFM4U = "FM4U";
+
+    private static String SBSPOWER = "Power";
+    private static String SBSLOVE = "Love";
 
     /**
      * today 인자가 없는 경우, 배치
@@ -57,8 +67,28 @@ public class MainService {
         responseDto.setToday(today);
 
         ChannelListDto channelListDto = new ChannelListDto();
-        channelListDto = this.getKbs(channelListDto, today); //kbs
-        channelListDto = this.getMbc(channelListDto, today); // mbc
+
+        // kbs
+        ChannelListDto kbsStation = this.getKbs(channelListDto, today);
+        channelListDto.setKbs1(kbsStation.getKbs1());
+        channelListDto.setKbs2(kbsStation.getKbs2());
+        channelListDto.setKbs3(kbsStation.getKbs3());
+        channelListDto.setKbsCool(kbsStation.getKbsCool());
+        channelListDto.setKbsClassic(kbsStation.getKbsClassic());
+        channelListDto.setKbsWorld(kbsStation.getKbsWorld());
+        channelListDto.setKbsHan(kbsStation.getKbsHan());
+
+        // mbc
+        ChannelListDto mbcStation = this.getMbc(channelListDto, today);
+        channelListDto.setMbcFm(mbcStation.getMbcFm());
+        channelListDto.setMbcFm4u(mbcStation.getMbcFm4u());
+
+        // sbs
+        ChannelListDto sbsStation = this.getSbs(channelListDto, today);
+        channelListDto.setSbsLove(sbsStation.getSbsLove());
+        channelListDto.setSbsPower(sbsStation.getSbsPower());
+
+
 
         responseDto.setStations(channelListDto);
 
@@ -113,6 +143,7 @@ public class MainService {
 
     /**
      * kbs schedules
+     * @param channelListDto
      * @param today
      * @return
      */
@@ -193,6 +224,12 @@ public class MainService {
         return channelListDto;
     }
 
+    /**
+     * mbc schedules
+     * @param channelListDto
+     * @param today
+     * @return
+     */
     private ChannelListDto getMbc(ChannelListDto channelListDto, String today){
 
         String defaultUrl = "https://control.imbc.com/Schedule/Radio?callback=ddara";
@@ -252,6 +289,87 @@ public class MainService {
                     channelListDto.setMbcFm(list);
                 }else if(MBCFM4U.equals(targetStation[k])){
                     channelListDto.setMbcFm4u(list);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return channelListDto;
+    }
+
+    /**
+     *
+     * @param channelListDto
+     * @param today
+     * @return
+     */
+    private ChannelListDto getSbs(ChannelListDto channelListDto, String today){
+
+        String defaultUrl = "https://static.cloud.sbs.co.kr/schedule/";
+
+        String todayStr = today.substring(0,4);
+        if("0".equals(today.indexOf(5))){
+            todayStr += "/" + today.substring(4,6) + "/" + today.substring(6, 8) + "/";
+        }else{
+            todayStr += "/" + today.substring(5,6) + "/" + today.substring(6, 8) + "/";
+        }
+
+        defaultUrl += todayStr;
+
+        String[] targetStation = new String[2];
+
+        targetStation[0] =  SBSLOVE;
+        targetStation[1] =  SBSPOWER;
+
+        try {
+
+            for(int k=0; k<targetStation.length; k++){
+
+                String targetUrl = defaultUrl + targetStation[k] + ".json";
+                URL url = new URL(targetUrl);
+                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+
+                conn.setRequestMethod("GET"); // http 메서드
+                conn.setRequestProperty("Content-Type", "application/json"); // header Content-Type 정보
+                conn.setRequestProperty("auth", "myAuth"); // header의 auth 정보
+                conn.setDoOutput(true); // 서버로부터 받는 값이 있다면 true
+
+                // 서버로부터 데이터 읽어오기
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder sb = new StringBuilder();
+                String line = null;
+
+                while((line = br.readLine()) != null) { // 읽을 수 있을 때 까지 반복
+                    sb.append(line);
+                }
+
+                String bodyData = sb.toString();
+
+                JSONArray array = new JSONArray(bodyData); // json으로 변경 (역직렬화)
+
+                List<ChannelDto> list = new ArrayList<>();
+                for(int i=0; i<array.length(); i++) {
+                    JSONObject dataObj = array.getJSONObject(i);
+
+                    ChannelDto channelDto = new ChannelDto();
+                    if(dataObj.has("start_time")) channelDto.setStartTime(String.valueOf(dataObj.get("start_time")));
+                    channelDto.setEndTime("null");
+                    if(dataObj.has("title")) channelDto.setTitle(String.valueOf(dataObj.get("title")));
+                    if(dataObj.has("homepage_url")) channelDto.setHomepageUrl(String.valueOf(dataObj.get("homepage_url")));
+                    if(dataObj.has("program_image")) channelDto.setImage(String.valueOf(dataObj.get("program_image")));
+                    channelDto.setStaff("null");
+                    channelDto.setActor("null");
+                    channelDto.setDetail("null");
+
+                    list.add(channelDto);
+                }
+
+                if(SBSLOVE.equals(targetStation[k])){
+                    channelListDto.setSbsLove(list);
+                }else if(SBSPOWER.equals(targetStation[k])){
+                    channelListDto.setSbsPower(list);
                 }
             }
 

@@ -18,4 +18,7 @@ public class ChannelListDto{
     List<ChannelDto> mbcFm;
     List<ChannelDto> mbcFm4u;
 
+    List<ChannelDto> sbsLove;
+    List<ChannelDto> sbsPower;
+
 }
