@@ -28,6 +28,8 @@ public class MainService {
     // https://static.api.kbs.co.kr/mediafactory/v1/schedule/weekly?&rtype=jsonp&local_station_code=00&channel_code=21&program_planned_date_from=20220523&program_planned_date_to=20220523&callback=dayliy_schedule
     // sbs
     // https://static.cloud.sbs.co.kr/schedule/2022/5/25/Power.json
+    // ebs
+    // https://www.ebs.co.kr/schedule?channelCd=RADIO&date=20220526
 
     private static String KBS1 = "21";
     private static String KBS2 = "22";
@@ -42,6 +44,9 @@ public class MainService {
 
     private static String SBSPOWER = "Power";
     private static String SBSLOVE = "Love";
+
+    private static String EBS = "RADIO";
+    private static String EBS2 = "IRADIO";
 
     /**
      * today 인자가 없는 경우, 배치
