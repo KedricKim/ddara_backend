@@ -4,14 +4,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import epg.ddara_backend.dto.ChannelDto;
 import epg.ddara_backend.dto.ChannelListDto;
 import epg.ddara_backend.dto.ResponseDto;
+import epg.ddara_backend.util.dateFormat;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDate;
@@ -45,8 +47,8 @@ public class MainService {
     private static String SBSPOWER = "Power";
     private static String SBSLOVE = "Love";
 
-    private static String EBS = "RADIO";
-    private static String EBS2 = "IRADIO";
+    private static String EBSFM = "RADIO";
+    private static String EBS = "IRADIO";
 
     /**
      * today 인자가 없는 경우, 배치
@@ -93,6 +95,10 @@ public class MainService {
         channelListDto.setSbsLove(sbsStation.getSbsLove());
         channelListDto.setSbsPower(sbsStation.getSbsPower());
 
+        // ebs
+        ChannelListDto ebsStation = this.getEbs(channelListDto, today);
+        channelListDto.setEbsFm(ebsStation.getEbsFm());
+        channelListDto.setEbs(ebsStation.getEbs());
 
 
         responseDto.setStations(channelListDto);
@@ -305,7 +311,7 @@ public class MainService {
     }
 
     /**
-     *
+     * sbs schedule
      * @param channelListDto
      * @param today
      * @return
@@ -314,12 +320,7 @@ public class MainService {
 
         String defaultUrl = "https://static.cloud.sbs.co.kr/schedule/";
 
-        String todayStr = today.substring(0,4);
-        if("0".equals(today.indexOf(5))){
-            todayStr += "/" + today.substring(4,6) + "/" + today.substring(6, 8) + "/";
-        }else{
-            todayStr += "/" + today.substring(5,6) + "/" + today.substring(6, 8) + "/";
-        }
+        String todayStr = dateFormat.sbsDateFormat(today);
 
         defaultUrl += todayStr;
 
@@ -332,7 +333,7 @@ public class MainService {
 
             for(int k=0; k<targetStation.length; k++){
 
-                String targetUrl = defaultUrl + targetStation[k] + ".json";
+                String targetUrl = defaultUrl + "/" + targetStation[k] + ".json";
                 URL url = new URL(targetUrl);
                 HttpURLConnection conn = (HttpURLConnection)url.openConnection();
 
@@ -379,6 +380,73 @@ public class MainService {
             }
 
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return channelListDto;
+    }
+
+
+    /**
+     * ebs schedule
+     * @param channelListDto
+     * @param today
+     * @return
+     */
+    public ChannelListDto getEbs(ChannelListDto channelListDto, String today){
+
+        String[] targetStation = new String[2];
+
+        targetStation[0] =  EBSFM;
+        targetStation[1] =  EBS;
+
+        // 자료를 가져올 사이트에 연결하기
+        Document doc = null;
+        try {
+
+            for(int k=0; k<targetStation.length; k++){
+                doc = Jsoup.connect("https://www.ebs.co.kr/schedule?channelCd=" + targetStation[k] + "&date="+today).get();
+
+                Elements titles = doc.select("div.list_a1 ul.main_timeline li div.tit strong");
+                Elements startTimes = doc.select("div.list_a1 ul.main_timeline li div.time span:not(.spt)");
+                Elements homepages = doc.select("div.list_a1 ul.main_timeline li div.btn_area a");
+                Elements details = doc.select("div.list_a1 ul.main_timeline li div.tit span.txt_cnt");
+
+                List<ChannelDto> list = new ArrayList<>();
+                for(int i=0; i<titles.size(); i++) {
+                    Element title = titles.get(i);
+                    Element startTime = startTimes.get(i);
+                    Element endTime = new Element("null");
+                    if(startTimes.size() > i+1){
+                        endTime = startTimes.get(i+1);
+                    }
+                    Element detail = details.get(i);
+                    ChannelDto channelDto = new ChannelDto();
+                    channelDto.setStartTime(startTime.text().replace(":", ""));
+                    channelDto.setEndTime(endTime.text().replace(":", ""));
+                    channelDto.setTitle(title.text());
+                    if(homepages.size() > i+1){
+                        Element homepageUrl = homepages.get(i);
+                        channelDto.setHomepageUrl(homepageUrl.attr("href"));
+                    }else{
+                        channelDto.setHomepageUrl("null");
+                    }
+                    channelDto.setImage("null");
+                    channelDto.setStaff("null");
+                    channelDto.setActor("null");
+                    channelDto.setDetail(detail.text());
+
+                    list.add(channelDto);
+                }
+
+                if(EBSFM.equals(targetStation[k])){
+                    channelListDto.setEbsFm(list);
+                }else if(EBS.equals(targetStation[k])){
+                    channelListDto.setEbs(list);
+                }
+            }
+
+        } catch (IOException e) {
             e.printStackTrace();
         }
 

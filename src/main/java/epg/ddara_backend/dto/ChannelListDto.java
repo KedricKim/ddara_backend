@@ -21,4 +21,6 @@ public class ChannelListDto{
     List<ChannelDto> sbsLove;
     List<ChannelDto> sbsPower;
 
+    List<ChannelDto> ebsFm;
+    List<ChannelDto> ebs;
 }

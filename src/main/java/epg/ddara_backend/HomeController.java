@@ -8,6 +8,6 @@ public class HomeController {
 
     @GetMapping("/")
     public String main(){
-        return "Hello world";
+        return "따뜻한 라디오 - BACKEND API";
     }
 }

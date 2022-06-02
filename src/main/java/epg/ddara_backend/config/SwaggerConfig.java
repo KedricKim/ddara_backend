@@ -25,8 +25,8 @@ public class SwaggerConfig {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("Swagger Test")
-                .description("SwaggerConfig")
+                .title("ddara_backend_api")
+                .description("따뜻한 라디오 스케쥴 API")
                 .version("3.0")
                 .build();
     }
